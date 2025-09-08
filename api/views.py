@@ -108,4 +108,4 @@ class AgentViewSet(viewsets.ModelViewSet):
 class ToolViewSet(viewsets.ModelViewSet):
     queryset = Tool.objects.all().order_by('tool_name')
     serializer_class = ToolSerializer
-    permission_classes = [permissions.IsAuthenticated]  
+    permission_classes = [permissions.IsAuthenticated,IsAdmin]  
