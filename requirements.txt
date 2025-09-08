@@ -6,7 +6,7 @@ djangorestframework==3.14.0
 mypy-extensions==1.1.0
 packaging==25.0
 pathspec==0.12.1
-pillow==11.3.0
+pillow==10.2.0
 platformdirs==4.4.0
 sqlparse==0.5.3
 typing-extensions==4.13.2
