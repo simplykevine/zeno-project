@@ -1,0 +1,18 @@
+{
+    "sourceFile": "api/urls.py",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1757256667507,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1757256667507,
+            "name": "Commit-0",
+            "content": "from django.urls import path\nfrom .views import AgentListCreateView, AgentRetrieveUpdateDestroyView\n\nurlpatterns = [\n    path('agents/', AgentListCreateView.as_view(), name='agent-list-create'),\n    path('agents/<int:agent_id>/', AgentRetrieveUpdateDestroyView.as_view(), name='agent-detail'),\n]"
+        }
+    ]
+}

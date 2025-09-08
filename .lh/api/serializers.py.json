@@ -1,0 +1,22 @@
+{
+    "sourceFile": "api/serializers.py",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1757256592126,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1757256597983,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,6 +1,6 @@\n from rest_framework import serializers\n-from agent.models import Agent\n+from agents.models import Agent\n \n class AgentSerializer(serializers.ModelSerializer):\n     class Meta:\n         model = Agent\n"
+                }
+            ],
+            "date": 1757256592126,
+            "name": "Commit-0",
+            "content": "from rest_framework import serializers\nfrom agent.models import Agent\n\nclass AgentSerializer(serializers.ModelSerializer):\n    class Meta:\n        model = Agent\n        fields = ['agent_id', 'agent_name', 'description']"
+        }
+    ]
+}
