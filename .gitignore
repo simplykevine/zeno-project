@@ -1,4 +1,11 @@
-env/
-.pyc
-db.sqlite3
 __pycache__/
+*.pyc
+env/
+venv/
+.venv
+db.sqlite3
+.env
+.vscode/
+.idea/
+.history/
+.lh/

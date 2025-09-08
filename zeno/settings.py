@@ -41,8 +41,9 @@ INSTALLED_APPS = [
     'api',
     'rest_framework',
     'rest_framework.authtoken'
-
+    'agents',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

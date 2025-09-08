@@ -1,3 +1,4 @@
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -6,7 +7,9 @@ from django.contrib.auth import authenticate
 from users.models import User, Review
 from .serializers import UserSerializer, ReviewSerializer
 from .permissions import IsAdmin
-
+from rest_framework import generics
+from agents.models import Agent
+from .serializers import AgentSerializer
 
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -22,7 +25,6 @@ class RegisterView(viewsets.ViewSet):
                 'role': getattr(user, 'role', None)
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class LoginView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -95,6 +97,11 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
 
+class AgentListCreateView(generics.ListCreateAPIView):
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
 
-
-
+class AgentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+    lookup_field = 'agent_id'

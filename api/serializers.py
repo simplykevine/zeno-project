@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from users.models import User, Review
+from agents.models import Agent
+
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,3 +31,9 @@ class ReviewSerializer(serializers.ModelSerializer):
         model = Review
         fields = ['review_id', 'review_text', 'rating', 'created_at', 'user']
 
+
+
+class AgentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Agent
+        fields = ['agent_id', 'agent_name', 'description']
