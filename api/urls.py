@@ -10,7 +10,8 @@ from .views import (
     LogoutView,
     ConversationViewSet,
     AgentViewSet,
-    ToolViewSet
+    ToolViewSet,
+    RunViewSet
 )
 
 
@@ -20,6 +21,8 @@ router.register(r'reviews', ReviewViewSet, basename='reviews')
 router.register(r'conversations', ConversationViewSet, basename='conversation')
 router.register(r'agents', AgentViewSet, basename='agents')
 router.register(r'tools', ToolViewSet)
+router.register(r'runs', RunViewSet, basename='run')
+
 
 urlpatterns = [
     path('', include(router.urls)),
