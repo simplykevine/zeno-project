@@ -6,7 +6,6 @@ djangorestframework==3.15.2
 mypy-extensions==1.1.0
 packaging==25.0
 pathspec==0.12.1
-pip==25.2
 platformdirs==4.4.0
 psycopg==3.2.9
 psycopg2-binary==2.9.10
