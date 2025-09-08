@@ -2,7 +2,7 @@ from rest_framework import serializers
 from users.models import User, Review
 from conversations.models import Conversation
 from agents.models import Agent, Tool
-
+from runs.models import RunInputFile, RunOutputArtifact, Run
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -63,3 +63,30 @@ class ToolSerializer(serializers.ModelSerializer):
         model = Tool
         fields = '__all__'
 
+class RunInputFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RunInputFile
+        fields = ['id', 'file', 'file_type', 'description']
+        read_only_fields = ['id']
+
+class RunOutputArtifactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RunOutputArtifact
+        fields = ['id', 'artifact_type', 'data', 'title']
+        read_only_fields = ['id']
+
+class RunSerializer(serializers.ModelSerializer):
+    input_files = RunInputFileSerializer(many=True, read_only=True)
+    output_artifacts = RunOutputArtifactSerializer(many=True, read_only=True) 
+
+    class Meta:
+        model = Run
+        fields = [
+            'id',
+            'user_input',
+            'status',
+            'final_output',
+            'input_files',
+            'output_artifacts' 
+        ]
+        read_only_fields = ['id', 'status', 'final_output', 'input_files', 'output_artifacts']
