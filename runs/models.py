@@ -1,4 +1,5 @@
 from django.db import models
+from conversations.models import Conversation
 
 class Run(models.Model):
     STATUS_CHOICES = [
@@ -7,11 +8,12 @@ class Run(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
-    # conversation = models.ForeignKey(
-    #     'conversation.Conversation',
-    #     on_delete=models.CASCADE,
-    #     related_name='runs'
-    # )
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name='runs',
+        blank=True, null=True
+    )
     user_input = models.TextField()
     final_output = models.TextField(blank=True, null=True)
     status = models.CharField(
