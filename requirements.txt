@@ -1,6 +1,6 @@
 asgiref==3.8.1
 black==24.8.0
-click==8.2.1
+click==8.1.7
 django==4.2.24
 djangorestframework==3.16.1
 mypy-extensions==1.1.0
