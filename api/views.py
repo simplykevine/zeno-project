@@ -6,13 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent
-
 from conversations.models import Conversation
 from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer
 from .permissions import IsAdmin
 from agents.models import Tool
 from .serializers import ToolSerializer
-
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -83,7 +81,7 @@ class LogoutView(viewsets.ViewSet):
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -101,16 +99,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return Response({"error": "You do not have permission to delete reviews"}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
 
-
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-
-class AgentListCreateView(generics.ListCreateAPIView):
-    queryset = Agent.objects.all()
-    serializer_class = AgentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
 class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
