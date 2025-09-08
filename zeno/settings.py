@@ -40,8 +40,8 @@ INSTALLED_APPS = [
     'users',
     'api',
     'rest_framework',
-    'rest_framework.authtoken'
-    'agents',
+    'rest_framework.authtoken',
+    'agents'
 ]
 
 
