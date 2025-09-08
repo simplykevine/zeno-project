@@ -8,21 +8,23 @@ from .views import (
     RegisterView,
     LoginView,
     LogoutView,
-    AgentListCreateView, 
-    AgentRetrieveUpdateDestroyView
+    AgentViewSet,
+    ToolViewSet
 )
+
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='users')
 router.register(r'reviews', ReviewViewSet, basename='reviews')
+router.register(r'agents', AgentViewSet, basename='agents')
+router.register(r'tools', ToolViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
     path('register/', RegisterView.as_view({'post': 'create'}), name='register'),
     path('login/', LoginView.as_view({'post': 'login'}), name='login'),
     path('logout/', LogoutView.as_view({'post': 'logout'}), name='logout'),
-     path('agents/', AgentListCreateView.as_view(), name='agent-list-create'),
-    path('agents/<int:agent_id>/', AgentRetrieveUpdateDestroyView.as_view(), name='agent-detail'),
+   
 ]
 
 
