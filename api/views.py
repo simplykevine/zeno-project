@@ -4,11 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
-
 from users.models import User, Review
 from agents.models import Agent
 from conversations.models import Conversation
-
 from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer
 from .permissions import IsAdmin
 
