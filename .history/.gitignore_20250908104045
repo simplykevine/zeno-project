@@ -1,8 +1,0 @@
-env/
-.pyc
-db.sqlite3
-__pychache__/
-*.py[cod]
-*$py.class
-.env
-.env.*

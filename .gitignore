@@ -1,8 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+
+# Virtual environments
 env/
-.pyc
+venv/
+.venv/
+
+# Django database
 db.sqlite3
-__pychache__/
-*.py[cod]
-*$py.class
+
+# Environment variables
 .env
-.env.*
+
+.vscode/
+.idea/
+
+.history/
+.lh/
