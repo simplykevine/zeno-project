@@ -10,6 +10,8 @@ from .permissions import IsAdmin
 from rest_framework import generics
 from agents.models import Agent
 from .serializers import AgentSerializer
+from agents.models import Tool
+from .serializers import ToolSerializer
 
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -97,11 +99,13 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
 
-class AgentListCreateView(generics.ListCreateAPIView):
-    queryset = Agent.objects.all()
-    serializer_class = AgentSerializer
-
-class AgentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
     lookup_field = 'agent_id'
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+class ToolViewSet(viewsets.ModelViewSet):
+    queryset = Tool.objects.all().order_by('tool_name')
+    serializer_class = ToolSerializer
+    permission_classes = [permissions.IsAuthenticated,IsAdmin]  
