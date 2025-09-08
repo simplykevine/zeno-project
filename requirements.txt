@@ -13,6 +13,6 @@ typing-extensions==4.13.2
 psycopg==3.2.9
 psycopg2-binary==2.9.10
 whitenoise==6.7.0 
-backports-zoneinfo==0.2.1
+
 
 
