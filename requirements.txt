@@ -7,12 +7,12 @@ mypy-extensions==1.1.0
 packaging==25.0
 pathspec==0.12.1
 pillow==10.2.0
-platformdirs==3.4.1
+platformdirs==3.4.0
 sqlparse==0.5.3
 typing-extensions==4.13.2
 psycopg==3.2.9
 psycopg2-binary==2.9.10
-whitenoise==6.7.0
+whitenoise==6.7.0 
 backports-zoneinfo==0.2.1
 
 
