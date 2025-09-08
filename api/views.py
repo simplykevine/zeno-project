@@ -6,9 +6,13 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent
+
 from conversations.models import Conversation
 from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer
 from .permissions import IsAdmin
+from agents.models import Tool
+from .serializers import ToolSerializer
+
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -17,7 +21,6 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Conversation.objects.filter(user_id=self.request.user)
-
 
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -109,8 +112,13 @@ class AgentListCreateView(generics.ListCreateAPIView):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
 
-
-class AgentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
     lookup_field = 'agent_id'
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+class ToolViewSet(viewsets.ModelViewSet):
+    queryset = Tool.objects.all().order_by('tool_name')
+    serializer_class = ToolSerializer
+    permission_classes = [permissions.IsAuthenticated,IsAdmin]  

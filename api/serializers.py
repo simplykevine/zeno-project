@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from users.models import User, Review
-from agents.models import Agent
 from conversations.models import Conversation
+from agents.models import Agent, Tool
+
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -52,3 +53,13 @@ class AgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = ['agent_id', 'agent_name', 'description']
+
+class ToolSerializer(serializers.ModelSerializer):
+    tool_name = serializers.CharField(required=True, allow_blank=False)
+    tool_description = serializers.CharField(required=True, allow_blank=False)
+    meta_data = serializers.JSONField(required=True)
+
+    class Meta:
+        model = Tool
+        fields = '__all__'
+
