@@ -1,1 +1,1 @@
-web: gunicorn zeno.wsgi
+web: gunicorn zeno.wsgi --log-file -
