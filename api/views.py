@@ -17,9 +17,6 @@ from .serializers import AgentSerializer,  RunInputFileSerializer, RunOutputArti
 from runs.models import Run, RunInputFile, RunOutputArtifact 
 import threading
 
-
-
-
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]

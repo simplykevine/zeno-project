@@ -43,7 +43,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'agents',
     'conversations',
-    'runs'
+    'runs',
+    'drf_yasg',
+
 ]
 
 
