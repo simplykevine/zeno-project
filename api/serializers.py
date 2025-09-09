@@ -3,6 +3,7 @@ from users.models import User, Review
 from conversations.models import Conversation
 from agents.models import Agent, Tool
 from runs.models import RunInputFile, RunOutputArtifact, Run
+from conversations.models import Step 
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -90,3 +91,58 @@ class RunSerializer(serializers.ModelSerializer):
             'output_artifacts' 
         ]
         read_only_fields = ['id', 'status', 'final_output', 'input_files', 'output_artifacts']
+        
+class StepSerializer(serializers.ModelSerializer):
+    conversation = serializers.PrimaryKeyRelatedField(
+        queryset=Conversation.objects.all()
+    )
+    tool = serializers.PrimaryKeyRelatedField(
+        queryset=Tool.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    agent = serializers.PrimaryKeyRelatedField(
+        queryset=Agent.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Step
+        fields = [
+            'step_id',
+            'conversation',
+            'step_order',
+            'type',
+            'content',
+            'tool',
+            'agent',
+            'created_at'
+        ]
+        read_only_fields = ['step_id', 'created_at']
+
+    def validate(self, data):
+        step_type = data.get('type')
+        tool = data.get('tool')
+        agent = data.get('agent')
+
+        if step_type == 'tool_call' and not tool:
+            raise serializers.ValidationError({
+                'tool': "This field is required when type is 'tool_call'."
+            })
+        if step_type == 'sub_agent_call' and not agent:
+            raise serializers.ValidationError({
+                'agent': "This field is required when type is 'sub_agent_call'."
+            })
+
+        if step_type != 'tool_call' and tool:
+            raise serializers.ValidationError({
+                'tool': "This field should only be set when type is 'tool_call'."
+            })
+        if step_type != 'sub_agent_call' and agent:
+            raise serializers.ValidationError({
+                'agent': "This field should only be set when type is 'sub_agent_call'."
+            })
+
+        return data
+

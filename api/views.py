@@ -5,20 +5,12 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
 from users.models import User, Review
-from agents.models import Agent
-from conversations.models import Conversation
-from .serializers import UserSerializer, ReviewSerializer, ConversationSerializer, AgentSerializer,  RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ToolSerializer
-from .permissions import IsAdmin
-from rest_framework import generics
-from agents.models import Agent
-from agents.models import Tool
 from agents.models import Agent, Tool
-from .serializers import AgentSerializer,  RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ToolSerializer, UserSerializer, ReviewSerializer
-from runs.models import Run, RunInputFile, RunOutputArtifact 
-import threading
-
-
-
+from conversations.models import Conversation, Step
+from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer
+from .permissions import IsAdmin
+from runs.models import Run
+import threading, time, random
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
@@ -76,7 +68,7 @@ class LoginView(viewsets.ViewSet):
 
 
 class LogoutView(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def logout(self, request):
@@ -122,6 +114,30 @@ class ToolViewSet(viewsets.ModelViewSet):
     queryset = Tool.objects.all().order_by('tool_name')
     serializer_class = ToolSerializer
     permission_classes = [permissions.IsAuthenticated,IsAdmin]  
+
+
+class StepViewSet(viewsets.ModelViewSet):
+    serializer_class = StepSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role.lower() == "admin":
+            return Step.objects.select_related('conversation', 'tool', 'agent').all()
+        else:
+            return Step.objects.filter(
+                conversation__user=user
+            ).select_related('conversation', 'tool', 'agent')
+
+    @action(detail=False, methods=['get'])
+    def by_conversation(self, request):
+        conversation_id = request.query_params.get('conversation_id')
+        if not conversation_id:
+            return Response({"error": "conversation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        steps = self.get_queryset().filter(conversation_id=conversation_id).order_by('step_order')
+        serializer = self.get_serializer(steps, many=True)
+        return Response(serializer.data)
     
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
