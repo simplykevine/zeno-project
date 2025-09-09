@@ -23,7 +23,7 @@ jobs:
       - name: Set up Git remote for Heroku
         run: |
           git remote -v
-          git remote add heroku https://git.heroku.com/zenoai.git || echo "Heroku remote already exists"
+          git remote add heroku https://git.heroku.com/zeno-ai.git || echo "Heroku remote already exists"
 
       - name: Set Heroku buildpack
         run: |
