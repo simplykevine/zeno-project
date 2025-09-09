@@ -27,7 +27,7 @@ jobs:
 
       - name: Set Heroku buildpack
         run: |
-          heroku buildpacks:set heroku/python -a zenoai
+          heroku buildpacks:set heroku/python -a zeno-ai
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
 
