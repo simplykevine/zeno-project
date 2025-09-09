@@ -11,6 +11,7 @@ from .views import (
     ConversationViewSet,
     AgentViewSet,
     ToolViewSet,
+    StepViewSet,
     RunViewSet
 )
 
@@ -21,6 +22,7 @@ router.register(r'reviews', ReviewViewSet, basename='reviews')
 router.register(r'conversations', ConversationViewSet, basename='conversation')
 router.register(r'agents', AgentViewSet, basename='agents')
 router.register(r'tools', ToolViewSet)
+router.register(r'steps', StepViewSet, basename='steps')
 router.register(r'runs', RunViewSet, basename='run')
 
 
