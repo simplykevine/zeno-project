@@ -24,7 +24,8 @@ jobs:
         run: |
           git remote -v
           git remote add heroku https://git.heroku.com/zeno-backend.git || echo "Heroku remote already exists"
-
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
       - name: Set Heroku buildpack
         run: |
           heroku buildpacks:set heroku/python -a zeno-ai
