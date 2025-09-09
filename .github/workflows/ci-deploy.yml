@@ -20,6 +20,14 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Setup Heroku CLI
+        uses: heroku/actions/setup@v5
+
+      - name: Login to Heroku 
+        run: heroku container:login
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+
       - name: Set up Git remote for Heroku
         run: |
           git remote -v
