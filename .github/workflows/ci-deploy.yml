@@ -23,7 +23,7 @@ jobs:
       - name: Set up Git remote for Heroku
         run: |
           git remote -v
-          git remote add heroku https://git.heroku.com/zenoai.git || echo "Heroku remote already exists"
+          git remote add heroku https://git.heroku.com/zeno-backend.git || echo "Heroku remote already exists"
 
       - name: Set Heroku buildpack
         run: |
@@ -35,5 +35,5 @@ jobs:
         uses: akhileshns/heroku-deploy@v3.13.15
         with:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "zenoai"
+          heroku_app_name: "zeno-ai"
           heroku_email: ${{ secrets.HEROKU_EMAIL }}
