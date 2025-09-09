@@ -7,8 +7,10 @@ from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent, Tool
 from conversations.models import Conversation, Step
-from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer
+from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer
 from .permissions import IsAdmin
+from runs.models import Run
+import threading, time, random
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
@@ -16,6 +18,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Conversation.objects.filter(user_id=self.request.user)
+
 
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -135,3 +138,107 @@ class StepViewSet(viewsets.ModelViewSet):
         steps = self.get_queryset().filter(conversation_id=conversation_id).order_by('step_order')
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
+    
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
+class RunViewSet(viewsets.ViewSet):
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        elif self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated()]
+
+    def create(self, request):
+        user_input = request.data.get('user_input', '').strip()
+        if not user_input:
+            return Response({'error': 'user_input required'}, status=400)
+
+        run = Run.objects.create(user_input=user_input, status='pending')
+
+        files = request.FILES.getlist('files')
+        for file in files:
+            if file.name.endswith('.pdf'):
+                file_type = 'pdf'
+            elif file.name.endswith('.csv'):
+                file_type = 'csv'
+            else:
+                file_type = 'text'
+
+            RunInputFile.objects.create(
+                run=run,
+                file=file,
+                file_type=file_type,
+                description=f"Uploaded {file_type} file"
+            )
+
+        thread = threading.Thread(target=self.simulate_status, args=(run.id,))
+        thread.start()
+
+        serializer = RunSerializer(run)
+        return Response(serializer.data, status=201)
+        
+    def list(self, request):
+        user = request.user
+        if user.role.lower() == 'admin':
+            queryset = Run.objects.all()
+        else:
+            queryset = Run.objects.filter(user=user)
+        serializer = RunSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        try:
+            run = Run.objects.get(id=pk)
+        except Run.DoesNotExist:
+            return Response({'error': 'Run not found'}, status=404)
+        
+        if request.user.role.lower() != 'admin' and run.user != request.user:
+            return Response({'error': 'Not authorized to view this run'}, status=403)
+
+        serializer = RunSerializer(run)
+        return Response(serializer.data)
+
+
+    def simulate_status(self, run_id):
+        try:
+            run = Run.objects.get(id=run_id)
+
+            time.sleep(2)
+            run.status = 'running'
+            run.save(update_fields=['status'])
+
+            time.sleep(3)
+            run.status = 'completed'
+
+            RunOutputArtifact.objects.create(
+                run=run,
+                artifact_type='chart',
+                data={
+                    "chart_type": "line",
+                    "x": [2024, 2025, 2026],
+                    "y": [random.randint(100, 200) for _ in range(3)],
+                    "title": "Trade Forecast"
+                },
+                title="Export Forecast Chart"
+            )
+
+            RunOutputArtifact.objects.create(
+                run=run,
+                artifact_type='table',
+                data={
+                    "columns": ["Year", "Value"],
+                    "rows": [
+                        [2024, 120],
+                        [2025, 135],
+                        [2026, 150]
+                    ]
+                },
+                title="Export Data Table"
+            )
+
+            run.final_output = f" Done! Processed {run.input_files.count()} files. Generated 2 outputs."
+            run.save(update_fields=['status', 'final_output'])
+
+        except Exception:
+            pass
