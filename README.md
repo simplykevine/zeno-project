@@ -1,4 +1,4 @@
-# Zeno AI - Economic Reasoning System
+# Zeno AI - Economic Agent
 
 ## Overview
 Zeno AI is an advanced AI-powered economic reasoning system designed to provide intelligent insights and predictions to support economic decision-making. The project features a Django REST Framework backend API with endpoints for user management, reviews, conversations, agents, tools, and runs. Interactive API documentation is provided via Swagger and Redoc.
@@ -30,7 +30,7 @@ Zeno AI is an advanced AI-powered economic reasoning system designed to provide 
 
 1. Clone this repository:
    
-   git clone https://github.com/your-username/zeno-ai.git
+   git clone https://github.com/akirachix/zeno-backend.git
    cd zeno-ai
    
 
