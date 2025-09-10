@@ -20,8 +20,6 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Setup Heroku CLI
-        uses: heroku/setup-heroku@v2
 
       - name: Login to Heroku 
         run: heroku container:login
