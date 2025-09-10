@@ -91,8 +91,8 @@ Zeno AI is an advanced AI-powered economic reasoning system designed to provide 
 
 ## API Documentation
 
-- Swagger UI: [http://localhost:8000/swagger/](http://localhost:8000/swagger/)
-- Redoc: [http://localhost:8000/redoc/](http://localhost:8000/redoc/)
+- Swagger UI: [https://zeno-ai-be14a438528a.herokuapp.com/swagger/](https://zeno-ai-be14a438528a.herokuapp.com/swagger/)
+- Redoc: [https://zeno-ai-be14a438528a.herokuapp.com/redoc/](https://zeno-ai-be14a438528a.herokuapp.com/redoc/)
 
 ## Usage
 
