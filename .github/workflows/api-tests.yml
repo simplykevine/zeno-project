@@ -15,8 +15,8 @@ jobs:
   automated-api-tests:
     runs-on: macos-latest
     env:
-      COL_UID: 45527251-3b899791-2ded-481a-b87a-2f0110de39bd
-      ENV_UID: 45527251-2034cd1a-0ddd-4b38-ae40-dc908533daba
+      COL_UID: ${{ secrets.COL_UID }}
+      ENV_UID: ${{ secrets.ENV_UID }}
       POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
     steps:
       - uses: actions/checkout@v4
