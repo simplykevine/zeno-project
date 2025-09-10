@@ -30,7 +30,7 @@ Zeno AI is an advanced AI-powered economic reasoning system designed to provide 
 
 1. Clone this repository:
    
-   git clone https://github.com/your-username/zeno-backend.git
+   git clone https://github.com/akirachix/zeno-backend.git
    cd zeno-ai
    
 
