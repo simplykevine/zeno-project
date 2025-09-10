@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent, Tool
@@ -100,9 +102,40 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        role = getattr(user, 'role', '').lower()
+
+        if role == 'admin':
+            return User.objects.all()
+        elif role == 'user':
+            return User.objects.filter(id=user.id)
+        else:
+            return User.objects.none()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', '').lower()
+
+        if role == 'admin' or user.id == serializer.instance.id:
+            serializer.save()
+        else:
+            raise PermissionDenied({"error": "You do not have permission to update this user."})
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', '').lower()
+
+        if role == 'admin' or user.id == instance.id:
+            instance.delete()
+        else:
+            raise PermissionDenied({"error": "You do not have permission to delete this user."})
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
@@ -139,7 +172,6 @@ class StepViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
     
-from rest_framework.permissions import AllowAny, IsAuthenticated
 
 class RunViewSet(viewsets.ViewSet):
     def get_permissions(self):
