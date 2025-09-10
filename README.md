@@ -29,45 +29,45 @@ Zeno AI is an advanced AI-powered economic reasoning system designed to provide 
 ### Installation
 
 1. Clone this repository:
-   ```
+   
    git clone https://github.com/your-username/zeno-ai.git
    cd zeno-ai
-   ```
+   
 
 2. Create and activate a virtual environment:
-   ```
+   
    python -m venv venv
    source venv/bin/activate  # Linux/macOS
    venv\Scripts\activate     # Windows
-   ```
+
 
 3. Install dependencies:
-   ```
+   
    uv pip install -r requirements.txt
-   ```
+   
 
 4. Set environment variables and update `settings.py`
    - Configure your database, secret keys, and static/media paths
 
 5. Run database migrations:
-   ```
+   
    python manage.py migrate
-   ```
+   
 
 6. Create a superuser for admin access:
-   ```
+   
    python manage.py createsuperuser
-   ```
+   
 
 7. Collect static files:
-   ```
+   
    python manage.py collectstatic
-   ```
+   
 
 8. Start the development server:
-   ```
+
    python manage.py runserver
-   ```
+   
 
 ## API Documentation
 - Swagger UI: [http://localhost:8000/swagger/](http://localhost:8000/swagger/)
