@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url 
 
 load_dotenv()
 
@@ -76,22 +77,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'zeno.wsgi.application'
 
 
-if env_set('PGDATABASE', 'PGUSER', 'PGPASSWORD', 'PGHOST'):
+DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
+if not os.getenv("DATABASE_URL"):
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ['PGDATABASE'],
-            'USER': os.environ['PGUSER'],
-            'PASSWORD': os.environ['PGPASSWORD'],
-            'HOST': os.environ['PGHOST'],
-            'PORT': os.environ.get('PGPORT', '5432'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 

@@ -20,8 +20,8 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Setup Heroku CLI
-        uses: heroku/setup-heroku@v2
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
 
       - name: Login to Heroku 
         run: heroku container:login
@@ -32,9 +32,6 @@ jobs:
         run: |
           git remote -v
           git remote add heroku https://git.heroku.com/zeno-backend.git || echo "Heroku remote already exists"
-
-      - name: Install Heroku CLI
-        run: curl https://cli-assets.heroku.com/install.sh | sh
 
       - name: Deploy to Heroku
         uses: akhileshns/heroku-deploy@v3.13.15
