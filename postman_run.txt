@@ -1,0 +1,28 @@
+Could not get the lock, quitting
+The disableGPU setting is set to undefined
+Not disabling GPU
+Main: Starting cleanup of stale files
+Main: Cleanup of stale files completed
+Main~createDefaultWorkingDir - Default working dir creation already attempted
+1757513210322 main info "Booting Postman 11.60.4, linux-5.15.0-131-generic on x64"
+1757513210323 main info "EventBus~initialize - Success"
+1757513210325 main info "Proxy configuration has not been setup"
+1757513210326 main info "CloudProxyManager~init - Success"
+1757513210378 main info "performShellDataMigration: Migration has already been done. Bailing out"
+1757513210384 main info "UpdateHandler~init - Success"
+1757513210387 main info "LeaderSelection: Initialized successfully"
+1757513210412 main info "GPU detected VID 0 DID 0 ACTIVE false"
+1757513210441 main info "main.js: Agent started"
+1757513210442 main info "shellController~init: Success"
+1757513210442 main info "shellMeta~init: Success"
+1757513210442 main info "partitionMigrationService: State of V7 partition:"
+1757513210442 main info "partitionMigrationService: V7 partitions",[]
+1757513210443 main info "partitionMigrationService~rectifyNamespaceOfScratchPadPartition: There is no partition with scratchpad namespace"
+1757513210443 main info "partitionMigrationService~rectifyNamespaceOfScratchPadPartition: There is no transit partition which could have been used for scratchpad"
+1757513210443 main info "partitionMigrationService~init: Success"
+1757513210443 main info "partitionMigrationService~runV8PartitionsIntegrity: Two way migration~ removing the following partitions from v8",[]
+1757513210444 main info "userPartitionService~getRecentV8UserPartition: recent v8 user context partition ","3a422f36-d88a-4abd-b22a-88fe6cc36d56"
+1757513210444 main info "userPartitionService~_rectifyTheActivePartitionOfApplication: Setting the active partition to ","3a422f36-d88a-4abd-b22a-88fe6cc36d56"
+1757513210449 main info "LinuxAutoUpdater~Cleanup - Initial cleanup successful"
+1757513210451 main info "newAccountRegionPreferenceService~getPreferenceWithFallback - Preference not found in storage."
+1757513210451 main info "newAccountRegionPreferenceService~getToggleMenuTemplate - Using preference:","useUSRegion"
