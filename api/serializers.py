@@ -82,14 +82,7 @@ class RunSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Run
-        fields = [
-            'id',
-            'user_input',
-            'status',
-            'final_output',
-            'input_files',
-            'output_artifacts' 
-        ]
+        fields = '__all__'
         read_only_fields = ['id', 'status', 'final_output', 'input_files', 'output_artifacts']
         
 class StepSerializer(serializers.ModelSerializer):
