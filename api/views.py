@@ -63,7 +63,7 @@ class LoginView(viewsets.ViewSet):
 
         return Response({
             "token": token.key,
-            "user_id": user.id,
+            "id": user.id,
             "email": user.email,
             "role": user.role
         })
