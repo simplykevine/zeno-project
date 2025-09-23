@@ -278,7 +278,7 @@ class RunViewSet(viewsets.ViewSet):
             title="Export Data Table"
         )
 
-        run.status = 'completed'
+        run.status = Run.COMPLETED
         run.save(update_fields=['status'])
 
         serializer = RunSerializer(run)
@@ -343,7 +343,5 @@ class RunViewSet(viewsets.ViewSet):
 
         except Exception:
             pass
-
-
 
 

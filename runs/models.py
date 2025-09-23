@@ -1,12 +1,16 @@
 from django.db import models
 from conversations.models import Conversation
-
 class Run(models.Model):
+    COMPLETED = "COMPLETED"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    FAILED = "FAILED"
+    
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('running', 'Running'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
+        (PENDING, 'Pending'),
+        (RUNNING, 'Running'),
+        (COMPLETED, 'Completed'),
+        (FAILED, 'Failed'),
     ]
     conversation = models.ForeignKey(
         Conversation,
