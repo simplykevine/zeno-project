@@ -11,9 +11,9 @@ from agents.models import Agent, Tool
 from runs.models import Run, RunInputFile, RunOutputArtifact 
 from conversations.models import Conversation, Step
 from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ConversationWithRunsSerializer
-
 from .permissions import IsAdmin
 import threading, time, random
+
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
@@ -39,26 +39,12 @@ class ConversationViewSet(viewsets.ModelViewSet):
         else:
             queryset = queryset.filter(user=user)
 
-        # Limit to 10 most recent conversations
         queryset = queryset.order_by('-created_at')[:10]
 
-        # Optimize by prefetching related runs and their artifacts
         queryset = queryset.prefetch_related('runs__input_files', 'runs__output_artifacts')
 
         serializer = ConversationWithRunsSerializer(queryset, many=True)
         return Response(serializer.data)
-
-
-    
-
-    
-
-
-        
-
-    
-
-
 
 
 class RegisterView(viewsets.ViewSet):
