@@ -212,20 +212,30 @@ class RunViewSet(viewsets.ViewSet):
 
         if not user_input:
             return Response({'error': 'user_input required'}, status=400)
+
         conversation = None
         if conversation_id:
             try:
-                conversation= Conversation.objects.get(conversation_id = conversation_id)
+                conversation = Conversation.objects.get(conversation_id=conversation_id)
                 if conversation.user:
                     if not request.user.is_authenticated:
-                        return Response({'error': 'Login required to use this conversation'}, status = status.HTTP_403_FORBIDDEN)
+                        return Response(
+                            {'error': 'Login required to use this conversation'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
                     if conversation.user != request.user:
-                        return Response({ 'error': 'Not allowed to use this conversation'}, status= status.HTTP_403_FORBIDDEN)
-
+                        return Response(
+                            {'error': 'Not allowed to use this conversation'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
             except Conversation.DoesNotExist:
-                return Response({'error': 'Conversation not found'}, status = 404)
+                return Response({'error': 'Conversation not found'}, status=404)
 
-        run = Run.objects.create(user_input=user_input, conversation=conversation, status='pending')
+        run = Run.objects.create(
+            user_input=user_input,
+            conversation=conversation,
+            status='pending'
+        )
 
         files = request.FILES.getlist('files')
         for file in files:
@@ -242,7 +252,8 @@ class RunViewSet(viewsets.ViewSet):
                 file_type=file_type,
                 description=f"Uploaded {file_type} file"
             )
-            RunOutputArtifact.objects.create(
+
+        RunOutputArtifact.objects.create(
             run=run,
             artifact_type='chart',
             data={
@@ -267,18 +278,19 @@ class RunViewSet(viewsets.ViewSet):
             title="Export Data Table"
         )
 
-        run.final_output = f"Done! Processed {run.input_files.count()} files. Generated 2 outputs."
-        run.save(update_fields=['final_output'])
+        run.status = 'completed'
+        run.save(update_fields=['status'])
 
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
-        
+
     def list(self, request):
         user = request.user
         if user.role.lower() == 'admin':
             queryset = Run.objects.all()
         else:
             queryset = Run.objects.filter(conversation__user=user)
+
         serializer = RunSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -287,19 +299,19 @@ class RunViewSet(viewsets.ViewSet):
             run = Run.objects.get(id=pk)
         except Run.DoesNotExist:
             return Response({'error': 'Run not found'}, status=404)
-        if not run.conversation or run.conversation.user != request.user:
+
+        if run.conversation and run.conversation.user != request.user:
             return Response({'error': 'Not authorized to view this run'}, status=403)
 
         serializer = RunSerializer(run)
         return Response(serializer.data)
-
 
     def simulate_status(self, run_id):
         try:
             run = Run.objects.get(id=run_id)
             run.status = 'running'
             run.save(update_fields=['status'])
-            run.status = 'completed'
+
             RunOutputArtifact.objects.create(
                 run=run,
                 artifact_type='chart',
@@ -326,10 +338,12 @@ class RunViewSet(viewsets.ViewSet):
                 title="Export Data Table"
             )
 
-            run.final_output = f" Done! Processed {run.input_files.count()} files. Generated 2 outputs."
-            run.save(update_fields=['status', 'final_output'])
+            run.status = 'completed'
+            run.save(update_fields=['status'])
 
         except Exception:
             pass
+
+
 
 
