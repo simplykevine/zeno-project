@@ -242,9 +242,33 @@ class RunViewSet(viewsets.ViewSet):
                 file_type=file_type,
                 description=f"Uploaded {file_type} file"
             )
+            RunOutputArtifact.objects.create(
+            run=run,
+            artifact_type='chart',
+            data={
+                "chart_type": "line",
+                "x": [2024, 2025, 2026],
+                "y": [random.randint(100, 200) for _ in range(3)],
+                "title": "Trade Forecast"
+            },
+            title="Export Forecast Chart"
+        )
+        RunOutputArtifact.objects.create(
+            run=run,
+            artifact_type='table',
+            data={
+                "columns": ["Year", "Value"],
+                "rows": [
+                    [2024, 120],
+                    [2025, 135],
+                    [2026, 150]
+                ]
+            },
+            title="Export Data Table"
+        )
 
-        thread = threading.Thread(target=self.simulate_status, args=(run.id,))
-        thread.start()
+        run.final_output = f"Done! Processed {run.input_files.count()} files. Generated 2 outputs."
+        run.save(update_fields=['final_output'])
 
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
