@@ -78,7 +78,13 @@ class RunOutputArtifactSerializer(serializers.ModelSerializer):
 
 class RunSerializer(serializers.ModelSerializer):
     input_files = RunInputFileSerializer(many=True, read_only=True)
-    output_artifacts = RunOutputArtifactSerializer(many=True, read_only=True) 
+    output_artifacts = RunOutputArtifactSerializer(many=True, read_only=True)
+    conversation_id = serializers.PrimaryKeyRelatedField(
+        source = "conversation",
+        queryset=Conversation.objects.all(),
+        required=False,
+        allow_null=True
+    ) 
 
     class Meta:
         model = Run
@@ -138,4 +144,12 @@ class StepSerializer(serializers.ModelSerializer):
             })
 
         return data
+
+
+class ConversationWithRunsSerializer(serializers.ModelSerializer):
+    runs = RunSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Conversation
+        fields = ['conversation_id', 'title', 'created_at', 'runs']
 
