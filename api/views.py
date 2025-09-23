@@ -10,7 +10,7 @@ from users.models import User, Review
 from agents.models import Agent, Tool
 from runs.models import Run, RunInputFile, RunOutputArtifact 
 from conversations.models import Conversation, Step
-from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer
+from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ConversationWithRunsSerializer
 from .permissions import IsAdmin
 import threading, time, random
 
@@ -19,7 +19,32 @@ class ConversationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Conversation.objects.filter(user_id=self.request.user)
+        return Conversation.objects.filter(user=self.request.user)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def with_runs(self, request):
+        user = request.user
+        user_id = request.query_params.get('user_id')
+
+        queryset = Conversation.objects.all()
+
+        if user_id:
+            if IsAdmin().has_permission(request, self):
+                queryset = queryset.filter(user_id=user_id)
+            else:
+                return Response(
+                    {"error": "You are not allowed to fetch other users' conversations."},
+                    status=403
+                )
+        else:
+            queryset = queryset.filter(user=user)
+
+        queryset = queryset.order_by('-created_at')[:10]
+
+        queryset = queryset.prefetch_related('runs__input_files', 'runs__output_artifacts')
+
+        serializer = ConversationWithRunsSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class RegisterView(viewsets.ViewSet):
@@ -63,7 +88,7 @@ class LoginView(viewsets.ViewSet):
 
         return Response({
             "token": token.key,
-            "user_id": user.id,
+            "id": user.id,
             "email": user.email,
             "role": user.role
         })
@@ -183,10 +208,24 @@ class RunViewSet(viewsets.ViewSet):
 
     def create(self, request):
         user_input = request.data.get('user_input', '').strip()
+        conversation_id = request.data.get('conversation_id', None)
+
         if not user_input:
             return Response({'error': 'user_input required'}, status=400)
+        conversation = None
+        if conversation_id:
+            try:
+                conversation= Conversation.objects.get(conversation_id = conversation_id)
+                if conversation.user:
+                    if not request.user.is_authenticated:
+                        return Response({'error': 'Login required to use this conversation'}, status = status.HTTP_403_FORBIDDEN)
+                    if conversation.user != request.user:
+                        return Response({ 'error': 'Not allowed to use this conversation'}, status= status.HTTP_403_FORBIDDEN)
 
-        run = Run.objects.create(user_input=user_input, status='pending')
+            except Conversation.DoesNotExist:
+                return Response({'error': 'Conversation not found'}, status = 404)
+
+        run = Run.objects.create(user_input=user_input, conversation=conversation, status='pending')
 
         files = request.FILES.getlist('files')
         for file in files:
@@ -203,9 +242,33 @@ class RunViewSet(viewsets.ViewSet):
                 file_type=file_type,
                 description=f"Uploaded {file_type} file"
             )
+            RunOutputArtifact.objects.create(
+            run=run,
+            artifact_type='chart',
+            data={
+                "chart_type": "line",
+                "x": [2024, 2025, 2026],
+                "y": [random.randint(100, 200) for _ in range(3)],
+                "title": "Trade Forecast"
+            },
+            title="Export Forecast Chart"
+        )
+        RunOutputArtifact.objects.create(
+            run=run,
+            artifact_type='table',
+            data={
+                "columns": ["Year", "Value"],
+                "rows": [
+                    [2024, 120],
+                    [2025, 135],
+                    [2026, 150]
+                ]
+            },
+            title="Export Data Table"
+        )
 
-        thread = threading.Thread(target=self.simulate_status, args=(run.id,))
-        thread.start()
+        run.final_output = f"Done! Processed {run.input_files.count()} files. Generated 2 outputs."
+        run.save(update_fields=['final_output'])
 
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
@@ -215,7 +278,7 @@ class RunViewSet(viewsets.ViewSet):
         if user.role.lower() == 'admin':
             queryset = Run.objects.all()
         else:
-            queryset = Run.objects.filter(user=user)
+            queryset = Run.objects.filter(conversation__user=user)
         serializer = RunSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -224,8 +287,7 @@ class RunViewSet(viewsets.ViewSet):
             run = Run.objects.get(id=pk)
         except Run.DoesNotExist:
             return Response({'error': 'Run not found'}, status=404)
-        
-        if request.user.role.lower() != 'admin' and run.user != request.user:
+        if not run.conversation or run.conversation.user != request.user:
             return Response({'error': 'Not authorized to view this run'}, status=403)
 
         serializer = RunSerializer(run)
@@ -235,14 +297,9 @@ class RunViewSet(viewsets.ViewSet):
     def simulate_status(self, run_id):
         try:
             run = Run.objects.get(id=run_id)
-
-            time.sleep(2)
             run.status = 'running'
             run.save(update_fields=['status'])
-
-            time.sleep(3)
             run.status = 'completed'
-
             RunOutputArtifact.objects.create(
                 run=run,
                 artifact_type='chart',
@@ -274,3 +331,5 @@ class RunViewSet(viewsets.ViewSet):
 
         except Exception:
             pass
+
+
