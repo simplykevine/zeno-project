@@ -234,7 +234,7 @@ class RunViewSet(viewsets.ViewSet):
         run = Run.objects.create(
             user_input=user_input,
             conversation=conversation,
-            status='pending'
+            status = Run.PENDING
         )
 
         files = request.FILES.getlist('files')
@@ -338,7 +338,7 @@ class RunViewSet(viewsets.ViewSet):
                 title="Export Data Table"
             )
 
-            run.status = 'completed'
+            run.status = Run.COMPLETED
             run.save(update_fields=['status'])
 
         except Exception:
