@@ -13,6 +13,10 @@ from conversations.models import Conversation, Step
 from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ConversationWithRunsSerializer
 from .permissions import IsAdmin
 import threading, time, random
+import requests  
+
+
+
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
@@ -196,9 +200,128 @@ class StepViewSet(viewsets.ModelViewSet):
         steps = self.get_queryset().filter(conversation_id=conversation_id).order_by('step_order')
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
-    
 
 class RunViewSet(viewsets.ViewSet):
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        elif self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated()]
+
+    def create(self, request):
+        user_input = request.data.get('user_input', '').strip()
+        conversation_id = request.data.get('conversation_id', None)
+
+        if not user_input:
+            return Response({'error': 'user_input required'}, status=400)
+
+        conversation = None
+        if conversation_id:
+            try:
+                conversation = Conversation.objects.get(conversation_id=conversation_id)
+                if conversation.user:
+                    if not request.user.is_authenticated:
+                        return Response({'error': 'Login required to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
+                    if conversation.user != request.user:
+                        return Response({'error': 'Not allowed to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
+            except Conversation.DoesNotExist:
+                return Response({'error': 'Conversation not found'}, status=404)
+
+        run = Run.objects.create(
+            user_input=user_input,
+            conversation=conversation,
+            status=Run.PENDING
+        )
+
+        for file in request.FILES.getlist('files'):
+            RunInputFile.objects.create(run=run, file=file)
+
+        threading.Thread(target=self.simulate_status, args=(run.id,)).start()
+
+        serializer = RunSerializer(run)
+        return Response(serializer.data, status=201)
+
+    def list(self, request):
+        user = request.user
+        if user.role.lower() == 'admin':
+            queryset = Run.objects.all()
+        else:
+            queryset = Run.objects.filter(conversation__user=user)
+        serializer = RunSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        try:
+            run = Run.objects.get(id=pk)
+        except Run.DoesNotExist:
+            return Response({'error': 'Run not found'}, status=404)
+
+        if run.conversation and run.conversation.user != request.user:
+            return Response({'error': 'Not authorized to view this run'}, status=403)
+
+        serializer = RunSerializer(run)
+        data = serializer.data
+        return Response(data)
+
+    def simulate_status(self, run_id):
+        """Call deployed agent and save results to DB."""
+        try:
+            run = Run.objects.get(id=run_id)
+            run.status = Run.RUNNING
+            run.save(update_fields=['status'])
+
+            try:
+                response = requests.post(
+                    "https://zeno-agent-562581874833.europe-west1.run.app/api/scenario",
+                    data={"query": run.user_input},
+                    timeout=15
+                )
+                response.raise_for_status()
+                result = response.json()
+            except Exception as e:
+                run.status = Run.FAILED
+                run.final_output = f"Agent request failed: {str(e)}"
+                run.save(update_fields=['status', 'final_output'])
+                return
+
+            agent_response = result.get("response", "No response received.")
+            graph_url = result.get("graph_url")
+            thought_process = result.get("thought_process", [])
+            followup = result.get("followup")
+
+            if graph_url:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="link",
+                    data={"url": graph_url},
+                    title="Graph Link"
+                )
+
+            if thought_process:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="list",
+                    data={"steps": thought_process},
+                    title="Thought Process"
+                )
+
+            if followup:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="text",
+                    data={"content": followup},
+                    title="Follow-up Suggestion"
+                )
+
+            run.final_output = agent_response
+            run.status = Run.COMPLETED
+            run.save(update_fields=['status', 'final_output'])
+
+        except Run.DoesNotExist:
+            pass
+
+
     def get_permissions(self):
         if self.action == 'create':
             return [AllowAny()]

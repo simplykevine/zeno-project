@@ -35,7 +35,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['conversation_id', 'user', 'user_id', 'title', 'created_at']
-        read_only_fields = ['conversation_id', 'created_at', 'title']
+        read_only_fields = ['conversation_id', 'created_at']
 
     def create(self, validated_data):
         validated_data['title'] = "New Chat"

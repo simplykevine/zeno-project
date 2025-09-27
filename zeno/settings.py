@@ -24,7 +24,7 @@ def env_set(*names):
 
 DJANGO_SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 SECRET_KEY = DJANGO_SECRET_KEY
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
