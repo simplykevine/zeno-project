@@ -23,7 +23,6 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data, password=password)
         return user
 
-
 class ConversationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     user_id = serializers.PrimaryKeyRelatedField(
@@ -36,9 +35,13 @@ class ConversationSerializer(serializers.ModelSerializer):
         model = Conversation
         fields = ['conversation_id', 'user', 'user_id', 'title', 'created_at']
         read_only_fields = ['conversation_id', 'created_at']
+        extra_kwargs = {
+            'title': {'required': False}
+        }
 
     def create(self, validated_data):
-        validated_data['title'] = "New Chat"
+        if 'title' not in validated_data or not validated_data['title']:
+            validated_data['title'] = "New Chat"
         return super().create(validated_data)
 
 
@@ -152,4 +155,3 @@ class ConversationWithRunsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['conversation_id', 'title', 'created_at', 'runs']
-
