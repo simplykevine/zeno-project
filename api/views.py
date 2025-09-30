@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent, Tool
-from runs.models import Run, RunInputFile, RunOutputArtifact 
+from runs.models import Run, RunInputFile, RunOutputArtifact
 from conversations.models import Conversation, Step
 from .serializers import (
     UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer,
@@ -18,14 +18,33 @@ from .serializers import (
 from .permissions import IsAdmin
 import threading
 import requests
+from django.utils import timezone
+from datetime import timedelta
+
 
 ZEN_AGENT_API_URL = os.environ.get("ZEN_AGENT_API_URL")
+MAX_CONVERSATIONS_PER_DAY = 3
+MAX_RUNS_PER_CONVERSATION_PER_DAY = 15
+
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        since = timezone.now() - timedelta(days=1)
+        recent_count = Conversation.objects.filter(user=user, created_at__gte=since).count()
+
+        if recent_count >= MAX_CONVERSATIONS_PER_DAY:
+            return Response(
+                {"error": f"Daily conversation limit ({MAX_CONVERSATIONS_PER_DAY}) exceeded."},
+                status=403
+            )
+        return super().create(request, *args, **kwargs)
+
     def get_queryset(self):
         return Conversation.objects.filter(user=self.request.user)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def with_runs(self, request):
         user = request.user
@@ -46,6 +65,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         serializer = ConversationWithRunsSerializer(queryset, many=True)
         return Response(serializer.data)
 
+
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
     def create(self, request):
@@ -59,6 +79,7 @@ class RegisterView(viewsets.ViewSet):
                 'role': getattr(user, 'role', None)
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LoginView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -85,6 +106,7 @@ class LoginView(viewsets.ViewSet):
             "role": user.role
         })
 
+
 class LogoutView(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     @action(detail=False, methods=['post'])
@@ -94,6 +116,7 @@ class LogoutView(viewsets.ViewSet):
         except (AttributeError, Token.DoesNotExist):
             pass
         return Response({"message": "User logged out successfully"}, status=status.HTTP_200_OK)
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
@@ -111,6 +134,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if user.role.lower() != "admin":
             return Response({"error": "You do not have permission to delete reviews"}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
+
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
@@ -143,16 +167,19 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
+
 class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
     lookup_field = 'agent_id'
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
+
 class ToolViewSet(viewsets.ModelViewSet):
     queryset = Tool.objects.all().order_by('tool_name')
     serializer_class = ToolSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
 
 class StepViewSet(viewsets.ModelViewSet):
     serializer_class = StepSerializer
@@ -174,14 +201,19 @@ class StepViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
 
-class RunViewSet(viewsets.ViewSet):
+
+class RunViewSet(viewsets.ModelViewSet):
+    queryset = Run.objects.all()
+    serializer_class = RunSerializer
+
     def get_permissions(self):
         if self.action == 'create':
             return [AllowAny()]
-        elif self.action in ['list', 'retrieve']:
+        elif self.action in ['list', 'retrieve', 'destroy']:
             return [IsAuthenticated()]
         return [IsAuthenticated()]
-    def create(self, request):
+
+    def create(self, request, *args, **kwargs):
         user_input = request.data.get('user_input', '').strip()
         conversation_id = request.data.get('conversation_id', None)
         if not user_input:
@@ -197,6 +229,13 @@ class RunViewSet(viewsets.ViewSet):
                         return Response({'error': 'Not allowed to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
             except Conversation.DoesNotExist:
                 return Response({'error': 'Conversation not found'}, status=404)
+            since = timezone.now() - timedelta(days=1)
+            runs_count = Run.objects.filter(conversation=conversation, started_at__gte=since).count()
+            if runs_count >= MAX_RUNS_PER_CONVERSATION_PER_DAY:
+                return Response(
+                    {'error': f'Run limit ({MAX_RUNS_PER_CONVERSATION_PER_DAY}) for this conversation per day exceeded.'},
+                    status=403
+                )   
         run = Run.objects.create(
             user_input=user_input,
             conversation=conversation,
@@ -207,7 +246,8 @@ class RunViewSet(viewsets.ViewSet):
         threading.Thread(target=self.simulate_status, args=(run.id,)).start()
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
-    def list(self, request):
+
+    def list(self, request, *args, **kwargs):
         user = request.user
         if user.role.lower() == 'admin':
             queryset = Run.objects.all()
@@ -215,7 +255,8 @@ class RunViewSet(viewsets.ViewSet):
             queryset = Run.objects.filter(conversation__user=user)
         serializer = RunSerializer(queryset, many=True)
         return Response(serializer.data)
-    def retrieve(self, request, pk=None):
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
         try:
             run = Run.objects.get(id=pk)
         except Run.DoesNotExist:
@@ -225,6 +266,7 @@ class RunViewSet(viewsets.ViewSet):
         serializer = RunSerializer(run)
         data = serializer.data
         return Response(data)
+
     def simulate_status(self, run_id):
         try:
             run = Run.objects.get(id=run_id)
@@ -273,3 +315,18 @@ class RunViewSet(viewsets.ViewSet):
             run.save(update_fields=['status', 'final_output'])
         except Run.DoesNotExist:
             pass
+
+    def destroy(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        try:
+            run = Run.objects.get(id=pk)
+        except Run.DoesNotExist:
+            return Response({'error': 'Run not found'}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+        is_admin = getattr(user, 'role', '').lower() == 'admin'
+        is_owner = run.conversation and run.conversation.user == user
+        if is_admin or is_owner:
+            run.delete()
+            return Response({'message': 'Run deleted successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'You do not have permission to delete this run.'}, status=status.HTTP_403_FORBIDDEN)
