@@ -18,6 +18,8 @@ import dj_database_url
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+import os
+ZEN_AGENT_API_URL = os.environ.get("ZEN_AGENT_API_URL")
 
 def env_set(*names):
     return all(os.environ.get(name, "").strip() != "" for name in names)

@@ -1,34 +1,36 @@
+import os
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent, Tool
 from runs.models import Run, RunInputFile, RunOutputArtifact 
 from conversations.models import Conversation, Step
-from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ConversationWithRunsSerializer
+from .serializers import (
+    UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer,
+    ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer,
+    RunSerializer, ConversationWithRunsSerializer
+)
 from .permissions import IsAdmin
-import threading, time, random
-import requests  
+import threading
+import requests
+
+ZEN_AGENT_API_URL = os.environ.get("ZEN_AGENT_API_URL")
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
         return Conversation.objects.filter(user=self.request.user)
-
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def with_runs(self, request):
         user = request.user
         user_id = request.query_params.get('user_id')
-
         queryset = Conversation.objects.all()
-
         if user_id:
             if IsAdmin().has_permission(request, self):
                 queryset = queryset.filter(user_id=user_id)
@@ -39,18 +41,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 )
         else:
             queryset = queryset.filter(user=user)
-
         queryset = queryset.order_by('-created_at')[:10]
-
         queryset = queryset.prefetch_related('runs__input_files', 'runs__output_artifacts')
-
         serializer = ConversationWithRunsSerializer(queryset, many=True)
         return Response(serializer.data)
 
-
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-
     def create(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -63,30 +60,24 @@ class RegisterView(viewsets.ViewSet):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class LoginView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-
     @action(detail=False, methods=['post'])
     def login(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
-
         if not email or not password:
             return Response(
                 {"error": "Email and password are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         user = authenticate(request, email=email, password=password)
         if not user:
             return Response(
                 {"error": "Invalid credentials"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
         token, _ = Token.objects.get_or_create(user=user)
-
         return Response({
             "token": token.key,
             "id": user.id,
@@ -94,10 +85,8 @@ class LoginView(viewsets.ViewSet):
             "role": user.role
         })
 
-
 class LogoutView(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
-
     @action(detail=False, methods=['post'])
     def logout(self, request):
         try:
@@ -106,21 +95,17 @@ class LogoutView(viewsets.ViewSet):
             pass
         return Response({"message": "User logged out successfully"}, status=status.HTTP_200_OK)
 
-
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         if user.role.lower() == "admin":
             return Review.objects.all()
         else:
             return Review.objects.filter(user=user)
-
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
     def destroy(self, request, *args, **kwargs):
         user = request.user
         if user.role.lower() != "admin":
@@ -130,22 +115,18 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin':
             return User.objects.all()
         elif role == 'user':
             return User.objects.filter(id=user.id)
         else:
             return User.objects.none()
-
     def perform_update(self, serializer):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin' or user.id == serializer.instance.id:
             serializer.save()
         else:
@@ -153,7 +134,6 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin' or user.id == instance.id:
             instance.delete()
         else:
@@ -172,13 +152,11 @@ class AgentViewSet(viewsets.ModelViewSet):
 class ToolViewSet(viewsets.ModelViewSet):
     queryset = Tool.objects.all().order_by('tool_name')
     serializer_class = ToolSerializer
-    permission_classes = [permissions.IsAuthenticated,IsAdmin]  
-
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
 class StepViewSet(viewsets.ModelViewSet):
     serializer_class = StepSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         if user.role.lower() == "admin":
@@ -187,13 +165,11 @@ class StepViewSet(viewsets.ModelViewSet):
             return Step.objects.filter(
                 conversation__user=user
             ).select_related('conversation', 'tool', 'agent')
-
     @action(detail=False, methods=['get'])
     def by_conversation(self, request):
         conversation_id = request.query_params.get('conversation_id')
         if not conversation_id:
             return Response({"error": "conversation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         steps = self.get_queryset().filter(conversation_id=conversation_id).order_by('step_order')
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
@@ -205,14 +181,11 @@ class RunViewSet(viewsets.ViewSet):
         elif self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
         return [IsAuthenticated()]
-
     def create(self, request):
         user_input = request.data.get('user_input', '').strip()
         conversation_id = request.data.get('conversation_id', None)
-
         if not user_input:
             return Response({'error': 'user_input required'}, status=400)
-
         conversation = None
         if conversation_id:
             try:
@@ -224,21 +197,16 @@ class RunViewSet(viewsets.ViewSet):
                         return Response({'error': 'Not allowed to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
             except Conversation.DoesNotExist:
                 return Response({'error': 'Conversation not found'}, status=404)
-
         run = Run.objects.create(
             user_input=user_input,
             conversation=conversation,
             status=Run.PENDING
         )
-
         for file in request.FILES.getlist('files'):
             RunInputFile.objects.create(run=run, file=file)
-
         threading.Thread(target=self.simulate_status, args=(run.id,)).start()
-
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
-
     def list(self, request):
         user = request.user
         if user.role.lower() == 'admin':
@@ -247,30 +215,24 @@ class RunViewSet(viewsets.ViewSet):
             queryset = Run.objects.filter(conversation__user=user)
         serializer = RunSerializer(queryset, many=True)
         return Response(serializer.data)
-
     def retrieve(self, request, pk=None):
         try:
             run = Run.objects.get(id=pk)
         except Run.DoesNotExist:
             return Response({'error': 'Run not found'}, status=404)
-
         if run.conversation and run.conversation.user != request.user:
             return Response({'error': 'Not authorized to view this run'}, status=403)
-
         serializer = RunSerializer(run)
         data = serializer.data
         return Response(data)
-
     def simulate_status(self, run_id):
-        """Call deployed agent and save results to DB."""
         try:
             run = Run.objects.get(id=run_id)
             run.status = Run.RUNNING
             run.save(update_fields=['status'])
-
             try:
                 response = requests.post(
-                    "https://zeno-agent-562581874833.europe-west1.run.app/api/scenario",
+                    ZEN_AGENT_API_URL,
                     data={"query": run.user_input},
                     timeout=15
                 )
@@ -281,12 +243,10 @@ class RunViewSet(viewsets.ViewSet):
                 run.final_output = f"Agent request failed: {str(e)}"
                 run.save(update_fields=['status', 'final_output'])
                 return
-
             agent_response = result.get("response", "No response received.")
             graph_url = result.get("graph_url")
             thought_process = result.get("thought_process", [])
             followup = result.get("followup")
-
             if graph_url:
                 RunOutputArtifact.objects.create(
                     run=run,
@@ -294,7 +254,6 @@ class RunViewSet(viewsets.ViewSet):
                     data={"url": graph_url},
                     title="Graph Link"
                 )
-
             if thought_process:
                 RunOutputArtifact.objects.create(
                     run=run,
@@ -302,7 +261,6 @@ class RunViewSet(viewsets.ViewSet):
                     data={"steps": thought_process},
                     title="Thought Process"
                 )
-
             if followup:
                 RunOutputArtifact.objects.create(
                     run=run,
@@ -310,10 +268,8 @@ class RunViewSet(viewsets.ViewSet):
                     data={"content": followup},
                     title="Follow-up Suggestion"
                 )
-
             run.final_output = agent_response
             run.status = Run.COMPLETED
             run.save(update_fields=['status', 'final_output'])
-
         except Run.DoesNotExist:
             pass
