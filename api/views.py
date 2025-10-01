@@ -1,22 +1,46 @@
+import os
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from users.models import User, Review
 from agents.models import Agent, Tool
-from runs.models import Run, RunInputFile, RunOutputArtifact 
+from runs.models import Run, RunInputFile, RunOutputArtifact
 from conversations.models import Conversation, Step
-from .serializers import UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer, ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer, RunSerializer, ConversationWithRunsSerializer
+from .serializers import (
+    UserSerializer, ReviewSerializer, AgentSerializer, ConversationSerializer,
+    ToolSerializer, StepSerializer, RunInputFileSerializer, RunOutputArtifactSerializer,
+    RunSerializer, ConversationWithRunsSerializer
+)
 from .permissions import IsAdmin
-import threading, time, random
+import threading
+import requests
+from django.utils import timezone
+from datetime import timedelta
+
+
+ZEN_AGENT_API_URL = os.environ.get("ZEN_AGENT_API_URL")
+MAX_CONVERSATIONS_PER_DAY = 3
+MAX_RUNS_PER_CONVERSATION_PER_DAY = 15
+
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        since = timezone.now() - timedelta(days=1)
+        recent_count = Conversation.objects.filter(user=user, created_at__gte=since).count()
+
+        if recent_count >= MAX_CONVERSATIONS_PER_DAY:
+            return Response(
+                {"error": f"Daily conversation limit ({MAX_CONVERSATIONS_PER_DAY}) exceeded."},
+                status=403
+            )
+        return super().create(request, *args, **kwargs)
 
     def get_queryset(self):
         return Conversation.objects.filter(user=self.request.user)
@@ -25,9 +49,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
     def with_runs(self, request):
         user = request.user
         user_id = request.query_params.get('user_id')
-
         queryset = Conversation.objects.all()
-
         if user_id:
             if IsAdmin().has_permission(request, self):
                 queryset = queryset.filter(user_id=user_id)
@@ -38,18 +60,14 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 )
         else:
             queryset = queryset.filter(user=user)
-
         queryset = queryset.order_by('-created_at')[:10]
-
         queryset = queryset.prefetch_related('runs__input_files', 'runs__output_artifacts')
-
         serializer = ConversationWithRunsSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
 class RegisterView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-
     def create(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -65,27 +83,22 @@ class RegisterView(viewsets.ViewSet):
 
 class LoginView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-
     @action(detail=False, methods=['post'])
     def login(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
-
         if not email or not password:
             return Response(
                 {"error": "Email and password are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         user = authenticate(request, email=email, password=password)
         if not user:
             return Response(
                 {"error": "Invalid credentials"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
         token, _ = Token.objects.get_or_create(user=user)
-
         return Response({
             "token": token.key,
             "id": user.id,
@@ -96,7 +109,6 @@ class LoginView(viewsets.ViewSet):
 
 class LogoutView(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
-
     @action(detail=False, methods=['post'])
     def logout(self, request):
         try:
@@ -109,42 +121,36 @@ class LogoutView(viewsets.ViewSet):
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         if user.role.lower() == "admin":
             return Review.objects.all()
         else:
             return Review.objects.filter(user=user)
-
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
     def destroy(self, request, *args, **kwargs):
         user = request.user
         if user.role.lower() != "admin":
             return Response({"error": "You do not have permission to delete reviews"}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
 
+
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin':
             return User.objects.all()
         elif role == 'user':
             return User.objects.filter(id=user.id)
         else:
             return User.objects.none()
-
     def perform_update(self, serializer):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin' or user.id == serializer.instance.id:
             serializer.save()
         else:
@@ -152,7 +158,6 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         user = self.request.user
         role = getattr(user, 'role', '').lower()
-
         if role == 'admin' or user.id == instance.id:
             instance.delete()
         else:
@@ -162,22 +167,23 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
+
 class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
     lookup_field = 'agent_id'
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
+
 class ToolViewSet(viewsets.ModelViewSet):
     queryset = Tool.objects.all().order_by('tool_name')
     serializer_class = ToolSerializer
-    permission_classes = [permissions.IsAuthenticated,IsAdmin]  
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
 
 class StepViewSet(viewsets.ModelViewSet):
     serializer_class = StepSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
         if user.role.lower() == "admin":
@@ -186,162 +192,141 @@ class StepViewSet(viewsets.ModelViewSet):
             return Step.objects.filter(
                 conversation__user=user
             ).select_related('conversation', 'tool', 'agent')
-
     @action(detail=False, methods=['get'])
     def by_conversation(self, request):
         conversation_id = request.query_params.get('conversation_id')
         if not conversation_id:
             return Response({"error": "conversation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         steps = self.get_queryset().filter(conversation_id=conversation_id).order_by('step_order')
         serializer = self.get_serializer(steps, many=True)
         return Response(serializer.data)
-    
 
-class RunViewSet(viewsets.ViewSet):
+
+class RunViewSet(viewsets.ModelViewSet):
+    queryset = Run.objects.all()
+    serializer_class = RunSerializer
+
     def get_permissions(self):
         if self.action == 'create':
             return [AllowAny()]
-        elif self.action in ['list', 'retrieve']:
+        elif self.action in ['list', 'retrieve', 'destroy']:
             return [IsAuthenticated()]
         return [IsAuthenticated()]
 
-    def create(self, request):
+    def create(self, request, *args, **kwargs):
         user_input = request.data.get('user_input', '').strip()
         conversation_id = request.data.get('conversation_id', None)
-
         if not user_input:
             return Response({'error': 'user_input required'}, status=400)
-
         conversation = None
         if conversation_id:
             try:
                 conversation = Conversation.objects.get(conversation_id=conversation_id)
                 if conversation.user:
                     if not request.user.is_authenticated:
-                        return Response(
-                            {'error': 'Login required to use this conversation'},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
+                        return Response({'error': 'Login required to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
                     if conversation.user != request.user:
-                        return Response(
-                            {'error': 'Not allowed to use this conversation'},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
+                        return Response({'error': 'Not allowed to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
             except Conversation.DoesNotExist:
                 return Response({'error': 'Conversation not found'}, status=404)
-
+            since = timezone.now() - timedelta(days=1)
+            runs_count = Run.objects.filter(conversation=conversation, started_at__gte=since).count()
+            if runs_count >= MAX_RUNS_PER_CONVERSATION_PER_DAY:
+                return Response(
+                    {'error': f'Run limit ({MAX_RUNS_PER_CONVERSATION_PER_DAY}) for this conversation per day exceeded.'},
+                    status=403
+                )   
         run = Run.objects.create(
             user_input=user_input,
             conversation=conversation,
-            status = Run.PENDING
+            status=Run.PENDING
         )
-
-        files = request.FILES.getlist('files')
-        for file in files:
-            if file.name.endswith('.pdf'):
-                file_type = 'pdf'
-            elif file.name.endswith('.csv'):
-                file_type = 'csv'
-            else:
-                file_type = 'text'
-
-            RunInputFile.objects.create(
-                run=run,
-                file=file,
-                file_type=file_type,
-                description=f"Uploaded {file_type} file"
-            )
-
-        RunOutputArtifact.objects.create(
-            run=run,
-            artifact_type='chart',
-            data={
-                "chart_type": "line",
-                "x": [2024, 2025, 2026],
-                "y": [random.randint(100, 200) for _ in range(3)],
-                "title": "Trade Forecast"
-            },
-            title="Export Forecast Chart"
-        )
-        RunOutputArtifact.objects.create(
-            run=run,
-            artifact_type='table',
-            data={
-                "columns": ["Year", "Value"],
-                "rows": [
-                    [2024, 120],
-                    [2025, 135],
-                    [2026, 150]
-                ]
-            },
-            title="Export Data Table"
-        )
-
-        run.status = Run.COMPLETED
-        run.save(update_fields=['status'])
-
+        for file in request.FILES.getlist('files'):
+            RunInputFile.objects.create(run=run, file=file)
+        threading.Thread(target=self.simulate_status, args=(run.id,)).start()
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
 
-    def list(self, request):
+    def list(self, request, *args, **kwargs):
         user = request.user
         if user.role.lower() == 'admin':
             queryset = Run.objects.all()
         else:
             queryset = Run.objects.filter(conversation__user=user)
-
         serializer = RunSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, pk=None, *args, **kwargs):
         try:
             run = Run.objects.get(id=pk)
         except Run.DoesNotExist:
             return Response({'error': 'Run not found'}, status=404)
-
         if run.conversation and run.conversation.user != request.user:
             return Response({'error': 'Not authorized to view this run'}, status=403)
-
         serializer = RunSerializer(run)
-        return Response(serializer.data)
+        data = serializer.data
+        return Response(data)
 
     def simulate_status(self, run_id):
         try:
             run = Run.objects.get(id=run_id)
-            run.status = 'running'
+            run.status = Run.RUNNING
             run.save(update_fields=['status'])
-
-            RunOutputArtifact.objects.create(
-                run=run,
-                artifact_type='chart',
-                data={
-                    "chart_type": "line",
-                    "x": [2024, 2025, 2026],
-                    "y": [random.randint(100, 200) for _ in range(3)],
-                    "title": "Trade Forecast"
-                },
-                title="Export Forecast Chart"
-            )
-
-            RunOutputArtifact.objects.create(
-                run=run,
-                artifact_type='table',
-                data={
-                    "columns": ["Year", "Value"],
-                    "rows": [
-                        [2024, 120],
-                        [2025, 135],
-                        [2026, 150]
-                    ]
-                },
-                title="Export Data Table"
-            )
-
+            try:
+                response = requests.post(
+                    ZEN_AGENT_API_URL,
+                    data={"query": run.user_input},
+                    timeout=15
+                )
+                response.raise_for_status()
+                result = response.json()
+            except Exception as e:
+                run.status = Run.FAILED
+                run.final_output = f"Agent request failed: {str(e)}"
+                run.save(update_fields=['status', 'final_output'])
+                return
+            agent_response = result.get("response", "No response received.")
+            graph_url = result.get("graph_url")
+            thought_process = result.get("thought_process", [])
+            followup = result.get("followup")
+            if graph_url:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="link",
+                    data={"url": graph_url},
+                    title="Graph Link"
+                )
+            if thought_process:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="list",
+                    data={"steps": thought_process},
+                    title="Thought Process"
+                )
+            if followup:
+                RunOutputArtifact.objects.create(
+                    run=run,
+                    artifact_type="text",
+                    data={"content": followup},
+                    title="Follow-up Suggestion"
+                )
+            run.final_output = agent_response
             run.status = Run.COMPLETED
-            run.save(update_fields=['status'])
-
-        except Exception:
+            run.save(update_fields=['status', 'final_output'])
+        except Run.DoesNotExist:
             pass
 
-
+    def destroy(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        try:
+            run = Run.objects.get(id=pk)
+        except Run.DoesNotExist:
+            return Response({'error': 'Run not found'}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+        is_admin = getattr(user, 'role', '').lower() == 'admin'
+        is_owner = run.conversation and run.conversation.user == user
+        if is_admin or is_owner:
+            run.delete()
+            return Response({'message': 'Run deleted successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'You do not have permission to delete this run.'}, status=status.HTTP_403_FORBIDDEN)
