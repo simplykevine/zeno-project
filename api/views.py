@@ -202,6 +202,7 @@ class StepViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
@@ -275,7 +276,7 @@ class RunViewSet(viewsets.ModelViewSet):
             try:
                 response = requests.post(
                     ZEN_AGENT_API_URL,
-                    data={"query": run.user_input},
+                    json={"query": run.user_input}, 
                     timeout=15
                 )
                 response.raise_for_status()
@@ -285,7 +286,13 @@ class RunViewSet(viewsets.ModelViewSet):
                 run.final_output = f"Agent request failed: {str(e)}"
                 run.save(update_fields=['status', 'final_output'])
                 return
-            agent_response = result.get("response", "No response received.")
+            response_data = result.get("response", "No response received.")
+            if isinstance(response_data, list):
+             agent_response = "\n".join(
+             item.get("content", "").strip() for item in response_data
+                    ) or "No relevant information found."
+            else:
+             agent_response = str(response_data)
             graph_url = result.get("graph_url")
             thought_process = result.get("thought_process", [])
             followup = result.get("followup")
