@@ -23,8 +23,8 @@ from datetime import timedelta
 
 
 ZEN_AGENT_API_URL = os.environ.get("ZEN_AGENT_API_URL")
-MAX_CONVERSATIONS_PER_DAY = 3
-MAX_RUNS_PER_CONVERSATION_PER_DAY = 15
+MAX_CONVERSATIONS_PER_DAY = 5
+MAX_RUNS_PER_CONVERSATION_PER_DAY = 20
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -203,6 +203,7 @@ class StepViewSet(viewsets.ModelViewSet):
 
 
 
+
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
@@ -219,6 +220,7 @@ class RunViewSet(viewsets.ModelViewSet):
         conversation_id = request.data.get('conversation_id', None)
         if not user_input:
             return Response({'error': 'user_input required'}, status=400)
+
         conversation = None
         if conversation_id:
             try:
@@ -230,27 +232,32 @@ class RunViewSet(viewsets.ModelViewSet):
                         return Response({'error': 'Not allowed to use this conversation'}, status=status.HTTP_403_FORBIDDEN)
             except Conversation.DoesNotExist:
                 return Response({'error': 'Conversation not found'}, status=404)
+
             since = timezone.now() - timedelta(days=1)
             runs_count = Run.objects.filter(conversation=conversation, started_at__gte=since).count()
             if runs_count >= MAX_RUNS_PER_CONVERSATION_PER_DAY:
                 return Response(
                     {'error': f'Run limit ({MAX_RUNS_PER_CONVERSATION_PER_DAY}) for this conversation per day exceeded.'},
                     status=403
-                )   
+                )
+
         run = Run.objects.create(
             user_input=user_input,
             conversation=conversation,
             status=Run.PENDING
         )
+
         for file in request.FILES.getlist('files'):
             RunInputFile.objects.create(run=run, file=file)
+
         threading.Thread(target=self.simulate_status, args=(run.id,)).start()
+
         serializer = RunSerializer(run)
         return Response(serializer.data, status=201)
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        if user.role.lower() == 'admin':
+        if getattr(user, 'role', '').lower() == 'admin':
             queryset = Run.objects.all()
         else:
             queryset = Run.objects.filter(conversation__user=user)
@@ -265,19 +272,19 @@ class RunViewSet(viewsets.ModelViewSet):
         if run.conversation and run.conversation.user != request.user:
             return Response({'error': 'Not authorized to view this run'}, status=403)
         serializer = RunSerializer(run)
-        data = serializer.data
-        return Response(data)
+        return Response(serializer.data)
 
     def simulate_status(self, run_id):
         try:
             run = Run.objects.get(id=run_id)
             run.status = Run.RUNNING
             run.save(update_fields=['status'])
+
             try:
                 response = requests.post(
                     ZEN_AGENT_API_URL,
-                    json={"query": run.user_input}, 
-                    timeout=15
+                    json={"query": run.user_input},
+                    timeout=30
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -286,16 +293,44 @@ class RunViewSet(viewsets.ModelViewSet):
                 run.final_output = f"Agent request failed: {str(e)}"
                 run.save(update_fields=['status', 'final_output'])
                 return
-            response_data = result.get("response", "No response received.")
-            if isinstance(response_data, list):
-             agent_response = "\n".join(
-             item.get("content", "").strip() for item in response_data
-                    ) or "No relevant information found."
+
+            query_type = result.get("type", "rag")
+            
+            if query_type == "forecast":
+                forecast_display = result.get("forecast_display", "Forecast data unavailable")
+                interpretation = result.get("interpretation", "No interpretation available")
+                confidence_level = result.get("confidence_level", "Medium")
+                data_points = result.get("data_points_used", 0)
+                
+                agent_response = (
+                    f"{interpretation}\n\n"
+                    f"FORECAST SUMMARY:\n"
+                    f"{forecast_display}\n"
+                    f"Confidence Level: {confidence_level} ({data_points} data points used)"
+                )
+                
+                dual_forecast = result.get("dual_forecast", {})
+                if dual_forecast:
+                    RunOutputArtifact.objects.create(
+                        run=run,
+                        artifact_type="json",
+                        data={"dual_forecast": dual_forecast},
+                        title="Detailed Forecast Data"
+                    )
+                    
+            elif query_type == "scenario":
+                agent_response = result.get("llm_analysis", "No scenario analysis available.")
+                
+            elif query_type == "comparative":
+                agent_response = result.get("response", "No comparative analysis available.")
+                
             else:
-             agent_response = str(response_data)
+                agent_response = result.get("response", "No response received.")
+
             graph_url = result.get("graph_url")
             thought_process = result.get("thought_process", [])
             followup = result.get("followup")
+
             if graph_url:
                 RunOutputArtifact.objects.create(
                     run=run,
@@ -317,9 +352,11 @@ class RunViewSet(viewsets.ModelViewSet):
                     data={"content": followup},
                     title="Follow-up Suggestion"
                 )
+
             run.final_output = agent_response
             run.status = Run.COMPLETED
             run.save(update_fields=['status', 'final_output'])
+
         except Run.DoesNotExist:
             pass
 
