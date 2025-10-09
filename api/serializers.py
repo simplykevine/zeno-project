@@ -21,8 +21,8 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def validate_password(self, value):
-        if len(value) < 6:
-            raise ValidationError("Password must be at least 6 characters long.")
+        if len(value) < 8:
+            raise ValidationError("Password must be at least 8 characters long.")
         if not re.search(r'[A-Z]', value):
             raise ValidationError("Password must contain at least one uppercase letter.")
         if not re.search(r'\d', value):
