@@ -8,10 +8,10 @@ from users.models import User, Review
 class UserModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email="test@example.com",
+            email="testuser@gmail.com",
             first_name="Test",
             last_name="User",
-            password="password123"
+            password="Password@123"
         )
 
     def test_user_creation(self):
@@ -30,10 +30,10 @@ class UserModelTest(TestCase):
 class ReviewModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email="reviewer@example.com",
+            email="reviewer@gmail.com",
             first_name="Review",
             last_name="Author",
-            password="password123"
+            password="Password@123"
         )
         self.review = Review.objects.create(
             review_text="The response is insightful",

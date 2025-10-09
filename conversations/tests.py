@@ -10,10 +10,10 @@ from conversations.models import Conversation, Step
 class ConversationModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email='testuser@example.com',
+            email='testuser@gmail.com',
             first_name='Test',
             last_name='User',
-            password='testpass123'
+            password='Testpass@123'
         )
 
     def test_conversation_creation(self):
