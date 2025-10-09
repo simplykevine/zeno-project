@@ -12,7 +12,9 @@ from .views import (
     AgentViewSet,
     ToolViewSet,
     StepViewSet,
-    RunViewSet
+    RunViewSet,
+    PasswordResetRequestView, 
+    PasswordResetConfirmView
 )
 
 
@@ -31,6 +33,8 @@ urlpatterns = [
     path('register/', RegisterView.as_view({'post': 'create'}), name='register'),
     path('login/', LoginView.as_view({'post': 'login'}), name='login'),
     path('logout/', LogoutView.as_view({'post': 'logout'}), name='logout'),
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 ]
 
 

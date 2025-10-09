@@ -1,12 +1,16 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
-
+def validate_gmail_domain(value):
+    if not (value.endswith('@gmail.com') or value.endswith('@gmail.io')):
+        raise ValidationError('Email must end with @gmail.com or @gmail.io')
 
 class UserManager(BaseUserManager):
     def create_user(self, email, first_name, last_name, role="User", password=None, **extra_fields):
         if not email:
             raise ValueError("Users must have an email address")
+        validate_gmail_domain(email)
+
         email = self.normalize_email(email)
         user = self.model(
             email=email,
@@ -42,7 +46,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="User")
-    email = models.EmailField(max_length=255, unique=True)
+    email = models.EmailField(max_length=255, unique=True, validators=[validate_gmail_domain])
     image = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -59,10 +63,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
     
-
-
-
-
 class Review(models.Model):
     review_id = models.AutoField(primary_key=True)
     review_text = models.TextField()

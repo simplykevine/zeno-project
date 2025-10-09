@@ -26,7 +26,7 @@ def env_set(*names):
 
 DJANGO_SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 SECRET_KEY = DJANGO_SECRET_KEY
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -130,4 +130,18 @@ REST_FRAMEWORK = {
     ],
 }
 CORS_ORIGIN_ALLOW_ALL = True
+
+
+FRONTEND_URL = 'http://localhost:3000'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'zenoaiagent@gmail.com'
+EMAIL_HOST_PASSWORD = 'tumm hpje days nouc'  
+DEFAULT_FROM_EMAIL = 'zenoaiagent@gmail.com'
+
+
+
 
