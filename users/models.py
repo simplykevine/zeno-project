@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.exceptions import ValidationError
 
 def validate_gmail_domain(value):
     if not (value.endswith('@gmail.com') or value.endswith('@gmail.io')):
