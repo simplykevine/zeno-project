@@ -2,7 +2,7 @@ name: Django Deployment CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [feature/zeno-work]
 
 jobs:
   release:
@@ -14,24 +14,25 @@ jobs:
       - name: Set up Python environment
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
       - name: Install Heroku CLI
-        run: curl https://cli-assets.heroku.com/install.sh | sh
+        run: |
+          curl https://cli-assets.heroku.com/install.sh | sh
 
-      - name: Login to Heroku 
+      - name: Login to Heroku
         run: heroku container:login
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
 
       - name: Set up Git remote for Heroku
         run: |
-          git remote -v
-          git remote add heroku https://git.heroku.com/zeno-backend.git || echo "Heroku remote already exists"
+          git remote remove heroku || true
+          git remote add heroku https://git.heroku.com/zeno-backend.git
 
       - name: Deploy to Heroku
         uses: akhileshns/heroku-deploy@v3.13.15
